@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="service_description">Tracks scroll metrics across all apps to help you understand scrolling behavior.</string>
+    <string name="enable_service">Enable Accessibility Service</string>
+    <string name="open_settings">Open Accessibility Settings</string>
+    <string name="today_metrics">Today’s totals</string>
+    <string name="distance_fmt">Distance: %1$d px</string>
+    <string name="duration_fmt">Active duration: %1$d s</string>
+    <string name="speed_fmt">Avg speed: %1$.1f px/s</string>
+
+    <string name="app_name">Digital Wellbeing</string>
+    <string name="accessibility_service_description">
+        This service monitors your scrolling behavior and app usage to provide insights about your digital habits.
+        It does not collect personal information or share data with third parties.
+    </string>
+</resources>
