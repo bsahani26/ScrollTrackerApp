@@ -5,7 +5,7 @@ import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import com.example.scrolltracker.AppUsageTracker
+import com.example.scrolltracker.service.AppUsageTracker
 import com.example.scrolltracker.theme.ScrollMonitoringTheme
 import com.example.scrolltracker.ui.screens.ScrollMonitoringApp
 import dagger.hilt.android.AndroidEntryPoint
@@ -18,14 +18,15 @@ class ScrollMainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        if (!appUsageTracker.hasUsageStatsPermission()) {
+            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            this.startActivity(intent)
+        }
+
         setContent {
             ScrollMonitoringTheme {
                 ScrollMonitoringApp()
             }
-        }
-        if(!appUsageTracker.hasUsageStatsPermission()) {
-            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-            this.startActivity(intent)
         }
     }
 }

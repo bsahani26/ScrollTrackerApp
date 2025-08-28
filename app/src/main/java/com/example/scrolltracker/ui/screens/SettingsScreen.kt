@@ -40,10 +40,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.scrolltracker.isAccessibilityServiceEnabled
+import com.example.scrolltracker.ui.ScrollAnalyticsViewModel
 
 @Composable
 fun SettingsScreen() {
+    val viewModel: ScrollAnalyticsViewModel = hiltViewModel()
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(16.dp),
@@ -62,7 +65,7 @@ fun SettingsScreen() {
         }
 
         item {
-            DataManagementCard()
+            DataManagementCard(viewModel)
         }
 
         item {
@@ -141,7 +144,7 @@ fun AccessibilityServiceCard() {
 }
 
 @Composable
-fun DataManagementCard() {
+fun DataManagementCard(viewModel: ScrollAnalyticsViewModel) {
     Card(
         modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -161,7 +164,7 @@ fun DataManagementCard() {
                 title = "Clear All Data",
                 description = "Remove all stored scroll and usage data",
                 icon = Icons.Default.DeleteForever,
-                onClick = { /* TODO: Implement clear data */ })
+                onClick = { viewModel.clearAllData() })
 
             Spacer(modifier = Modifier.height(8.dp))
 

@@ -1,12 +1,8 @@
 package com.example.scrolltracker.ui.screens
 
-
-import android.content.Intent
-import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,36 +19,22 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Height
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.TouchApp
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -64,31 +46,23 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.Path
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.scrolltracker.data.dao.AppScrollStats
 import com.example.scrolltracker.data.dao.AppUsageStats
 import com.example.scrolltracker.data.dao.TimeBasedScrollStats
-import com.example.scrolltracker.data.entity.WakeCount
 import com.example.scrolltracker.formatDuration
-import com.example.scrolltracker.getScrollDistanceComparison
-import com.example.scrolltracker.isAccessibilityServiceEnabled
 import com.example.scrolltracker.ui.ScrollAnalyticsViewModel
 import com.example.scrolltracker.ui.TimeRange
-import kotlin.collections.isNotEmpty
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen() {
     val viewModel: ScrollAnalyticsViewModel = hiltViewModel()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsState()
-    val totalScrollMeters by viewModel.totalScrollMetersToday.collectAsState()
+    val totalScrollMeters by viewModel.totalScrollMeters.collectAsState()
     val scrollStats by viewModel.scrollStats.collectAsState()
     val appUsageStats by viewModel.appUsageStats.collectAsState()
     val wakeCount by viewModel.wakeCount.collectAsState()
@@ -108,31 +82,27 @@ fun DashboardScreen() {
         // Time range selector
         item {
             TimeRangeSelector(
-                selectedTimeRange = selectedTimeRange,
-                onTimeRangeSelected = viewModel::setTimeRange
+                selectedTimeRange = selectedTimeRange, onTimeRangeSelected = viewModel::setTimeRange
             )
         }
 
         // Scroll activity chart
         item {
             ScrollActivityChart(
-                data = scrollStats,
-                timeRange = selectedTimeRange
+                data = scrollStats, timeRange = selectedTimeRange
             )
         }
 
         // Quick stats grid
         item {
             QuickStatsGrid(
-                scrollStats = scrollStats,
-                appUsageStats = appUsageStats,
-                wakeCount = wakeCount
+                scrollStats = scrollStats, appUsageStats = appUsageStats, wakeCount = wakeCount
             )
         }
 
         // Top apps by usage
         item {
-            TopAppsCard(appUsageStats = appUsageStats.take(5))
+            TopAppsCard(appUsageStats = appUsageStats)
         }
     }
 }
@@ -140,13 +110,9 @@ fun DashboardScreen() {
 @Composable
 fun TodayStatsCard(totalScrollMeters: Float) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(120.dp),
-        colors = CardDefaults.cardColors(
+        modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primary
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ), elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Row(
             modifier = Modifier
@@ -189,12 +155,10 @@ fun TodayStatsCard(totalScrollMeters: Float) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TimeRangeSelector(
-    selectedTimeRange: TimeRange,
-    onTimeRangeSelected: (TimeRange) -> Unit
+    selectedTimeRange: TimeRange, onTimeRangeSelected: (TimeRange) -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
+        modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
@@ -212,7 +176,7 @@ fun TimeRangeSelector(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                TimeRange.values().forEach { timeRange ->
+                TimeRange.entries.forEach { timeRange ->
                     FilterChip(
                         onClick = { onTimeRangeSelected(timeRange) },
                         label = {
@@ -235,12 +199,10 @@ fun TimeRangeSelector(
 
 @Composable
 fun ScrollActivityChart(
-    data: List<TimeBasedScrollStats>,
-    timeRange: TimeRange
+    data: List<TimeBasedScrollStats>, timeRange: TimeRange
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
+        modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
@@ -280,8 +242,7 @@ fun ScrollActivityChart(
 
             if (data.isNotEmpty()) {
                 ScrollChart(
-                    data = data,
-                    modifier = Modifier
+                    data = data, modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp)
                 )
@@ -316,8 +277,7 @@ fun ScrollActivityChart(
 
 @Composable
 fun ScrollChart(
-    data: List<TimeBasedScrollStats>,
-    modifier: Modifier = Modifier
+    data: List<TimeBasedScrollStats>, modifier: Modifier = Modifier
 ) {
     // Custom chart implementation using Canvas
     Canvas(modifier = modifier) {
@@ -340,11 +300,8 @@ fun ScrollChart(
         // Create gradient
         val gradient = Brush.verticalGradient(
             colors = listOf(
-                androidx.compose.ui.graphics.Color(0xFF6366F1).copy(alpha = 0.6f),
-                androidx.compose.ui.graphics.Color(0xFF6366F1).copy(alpha = 0.1f)
-            ),
-            startY = padding,
-            endY = height - padding
+                Color(0xFF6366F1).copy(alpha = 0.6f), Color(0xFF6366F1).copy(alpha = 0.1f)
+            ), startY = padding, endY = height - padding
         )
 
         // Draw data points and lines
@@ -364,22 +321,16 @@ fun ScrollChart(
 
             // Draw data point
             drawCircle(
-                color = androidx.compose.ui.graphics.Color(0xFF6366F1),
-                radius = 4.dp.toPx(),
-                center = Offset(x, y)
+                color = Color(0xFF6366F1), radius = 4.dp.toPx(), center = Offset(x, y)
             )
 
             // Draw value text
             drawContext.canvas.nativeCanvas.drawText(
-                point.scrollCount.toString(),
-                x,
-                y - 15.dp.toPx(),
-                android.graphics.Paint().apply {
-                    color = androidx.compose.ui.graphics.Color.White.toArgb()
+                point.scrollCount.toString(), x, y - 15.dp.toPx(), android.graphics.Paint().apply {
+                    color = Color.White.toArgb()
                     textSize = 10.sp.toPx()
                     textAlign = android.graphics.Paint.Align.CENTER
-                }
-            )
+                })
         }
 
         // Complete gradient path
@@ -388,14 +339,13 @@ fun ScrollChart(
 
         // Draw gradient fill
         drawPath(
-            path = gradientPath,
-            brush = gradient
+            path = gradientPath, brush = gradient
         )
 
         // Draw line
         drawPath(
             path = path,
-            color = androidx.compose.ui.graphics.Color(0xFF6366F1),
+            color = Color(0xFF6366F1),
             style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
         )
     }
@@ -404,14 +354,11 @@ fun ScrollChart(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun QuickStatsGrid(
-    scrollStats: List<TimeBasedScrollStats>,
-    appUsageStats: List<AppUsageStats>,
-    wakeCount: Long
+    scrollStats: List<TimeBasedScrollStats>, appUsageStats: List<AppUsageStats>, wakeCount: Long
 ) {
     val totalScrolls = scrollStats.sumOf { it.scrollCount }
     val totalDistance = scrollStats.sumOf { it.totalDistance.toDouble() }.toFloat()
-    val totalScreenTime = appUsageStats.sumOf { it.totalTime }
-    val totalWakeUps = appUsageStats.sumOf { it.totalWakeUps }
+    val totalScreenTime = appUsageStats.sumOf { it.totalTimeInForeground }
 
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -453,20 +400,14 @@ fun QuickStatsGrid(
 
 @Composable
 fun QuickStatCard(
-    title: String,
-    value: String,
-    icon: ImageVector,
-    color: Color,
-    modifier: Modifier = Modifier
+    title: String, value: String, icon: ImageVector, color: Color, modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(100.dp),
-        colors = CardDefaults.cardColors(
+            .height(100.dp), colors = CardDefaults.cardColors(
             containerColor = color.copy(alpha = 0.1f)
-        ),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.3f))
+        ), border = BorderStroke(1.dp, color.copy(alpha = 0.3f))
     ) {
         Column(
             modifier = Modifier
@@ -493,11 +434,9 @@ fun QuickStatCard(
             }
 
             Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge.copy(
+                text = value, style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold
-                ),
-                color = color
+                ), color = color
             )
         }
     }
@@ -506,8 +445,7 @@ fun QuickStatCard(
 @Composable
 fun TopAppsCard(appUsageStats: List<AppUsageStats>) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
+        modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
@@ -537,9 +475,9 @@ fun TopAppsCard(appUsageStats: List<AppUsageStats>) {
             if (appUsageStats.isNotEmpty()) {
                 appUsageStats.forEach { app ->
                     AppUsageItem(
-                        appName = app.appName,
-                        screenTime = app.totalTime,
-                        wakeUps = app.totalWakeUps,
+                        appName = app.packageName,
+                        screenTime = app.totalTimeInForeground,
+                        wakeUps = app.launchCount,
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
@@ -563,10 +501,7 @@ fun TopAppsCard(appUsageStats: List<AppUsageStats>) {
 
 @Composable
 fun AppUsageItem(
-    appName: String,
-    screenTime: Long,
-    wakeUps: Int,
-    modifier: Modifier = Modifier
+    appName: String, screenTime: Long, wakeUps: Long, modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -591,11 +526,9 @@ fun AppUsageItem(
         }
 
         Text(
-            text = formatDuration(screenTime),
-            style = MaterialTheme.typography.bodyMedium.copy(
+            text = formatDuration(screenTime), style = MaterialTheme.typography.bodyMedium.copy(
                 fontWeight = FontWeight.Medium
-            ),
-            color = MaterialTheme.colorScheme.primary
+            ), color = MaterialTheme.colorScheme.primary
         )
     }
 }

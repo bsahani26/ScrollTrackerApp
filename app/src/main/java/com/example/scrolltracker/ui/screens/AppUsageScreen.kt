@@ -48,7 +48,9 @@ fun AppUsageScreen() {
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsState()
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -100,7 +102,9 @@ fun UsageTimeChart(
 
             if (data.isNotEmpty()) {
                 UsageChart(
-                    data = data, modifier = Modifier.fillMaxWidth().height(200.dp)
+                    data = data, modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
                 )
             } else {
                 EmptyChartPlaceholder()
@@ -200,7 +204,7 @@ fun DetailedAppUsageItem(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = appUsageStats.appName,
+                    text = appUsageStats.packageName,
                     style = MaterialTheme.typography.titleSmall.copy(
                         fontWeight = FontWeight.Medium
                     ),
@@ -219,7 +223,7 @@ fun DetailedAppUsageItem(
             }
 
             Text(
-                text = formatDuration(appUsageStats.totalTime),
+                text = formatDuration(appUsageStats.totalTimeInForeground),
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold
                 ),
@@ -233,14 +237,14 @@ fun DetailedAppUsageItem(
             modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween
         ) {
             StatChip(
-                label = "Sessions",
-                value = appUsageStats.sessionCount.toString(),
+                label = "Last Used",
+                value = formatDuration(appUsageStats.lastTimeUsed),
                 icon = Icons.Default.PlayCircleOutline
             )
 
             StatChip(
                 label = "Wake-ups",
-                value = appUsageStats.totalWakeUps.toString(),
+                value = appUsageStats.launchCount.toString(),
                 icon = Icons.Default.Notifications
             )
         }

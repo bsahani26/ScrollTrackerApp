@@ -9,7 +9,6 @@ data class ScrollEvent(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val packageName: String,
     val appName: String,
-    val scrollDirection: String,
     val scrollDistance: Float, // in pixels
     val scrollDistanceMeters: Float, // converted to meters
     val timestamp: Long = System.currentTimeMillis(),
@@ -20,13 +19,12 @@ data class ScrollEvent(
 
 @Entity(tableName = "wake_count")
 data class WakeCount(
-    @PrimaryKey val id: Long = 0,
-    val wakeCount: Long = 0
+    @PrimaryKey val id: Long = 0, val wakeCount: Long = 0
 )
 
 @Entity(tableName = "app_usage_sessions")
 data class AppUsageSession(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey(autoGenerate = true) var id: Long = 0,
     val packageName: String,
     val appName: String,
     val sessionStart: Long,

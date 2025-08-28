@@ -20,11 +20,11 @@ class ScrollAnalyticsViewModel @Inject constructor(
     private val _selectedTimeRange = MutableStateFlow(TimeRange.HOURS_24)
     val selectedTimeRange = _selectedTimeRange.asStateFlow()
 
-    private val _totalScrollMetersToday = MutableStateFlow(0f)
-    val totalScrollMetersToday = _totalScrollMetersToday.asStateFlow()
+    private val _totalScrollMeters = MutableStateFlow(0f)
+    val totalScrollMeters = _totalScrollMeters.asStateFlow()
 
     private val _wakeCountState = MutableStateFlow(0)
-    val wakeCountState  = _wakeCountState.asStateFlow()
+    val wakeCountState = _wakeCountState.asStateFlow()
 
     val scrollStats = selectedTimeRange.flatMapLatest { timeRange ->
         val (startTime, endTime) = getTimeRangeMillis(timeRange)
@@ -45,8 +45,8 @@ class ScrollAnalyticsViewModel @Inject constructor(
     )
 
     val appUsageStats = selectedTimeRange.flatMapLatest { timeRange ->
-        val (startTime, endTime) = getTimeRangeMillis(timeRange)
-        repository.getAppUsageStats(startTime, endTime)
+//        val (startTime, endTime) = getTimeRangeMillis(timeRange)
+        repository.getAppUsageStats()
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -56,9 +56,7 @@ class ScrollAnalyticsViewModel @Inject constructor(
     val wakeCount = wakeCountState.flatMapLatest {
         repository.getWakeCount()
     }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = 0
+        scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = 0
     )
 
     val hourlyUsageStats = selectedTimeRange.flatMapLatest { timeRange ->
@@ -71,21 +69,28 @@ class ScrollAnalyticsViewModel @Inject constructor(
     )
 
     init {
-        loadTotalScrollMetersToday()
+        loadTotalScrollMeters()
     }
 
     fun setTimeRange(timeRange: TimeRange) {
         _selectedTimeRange.value = timeRange
     }
 
-    private fun loadTotalScrollMetersToday() {
+    private fun loadTotalScrollMeters() {
         viewModelScope.launch {
-            _totalScrollMetersToday.value = repository.getTotalScrollMetersToday()
+            _totalScrollMeters.value = repository.getTotalScrollMeters()
+
         }
     }
 
     fun refresh() {
-        loadTotalScrollMetersToday()
+        loadTotalScrollMeters()
+    }
+
+    fun clearAllData() {
+        viewModelScope.launch {
+            repository.clearAllData()
+        }
     }
 
     private fun getTimeRangeMillis(timeRange: TimeRange): Pair<Long, Long> {
@@ -103,8 +108,7 @@ class ScrollAnalyticsViewModel @Inject constructor(
 
 enum class TimeRange(val displayName: String, val isHourly: Boolean) {
     HOURS_6("6 Hours", true), HOURS_12("12 Hours", true), HOURS_24(
-        "24 Hours",
-        true
+        "24 Hours", true
     ),
     DAYS_3("3 Days", false), DAYS_7("7 Days", false), DAYS_30("30 Days", false)
 }

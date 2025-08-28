@@ -15,7 +15,7 @@ import java.util.Date
 
 @Database(
     entities = [ScrollEvent::class, AppUsageSession::class, DailyStats::class, WakeCount::class],
-    version = 3,
+    version = 1,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

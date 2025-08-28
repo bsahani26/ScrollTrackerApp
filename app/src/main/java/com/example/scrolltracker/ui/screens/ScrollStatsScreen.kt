@@ -40,7 +40,7 @@ import com.example.scrolltracker.ui.ScrollAnalyticsViewModel
 fun ScrollStatsScreen() {
     val viewModel: ScrollAnalyticsViewModel = hiltViewModel()
     val appScrollStats by viewModel.appScrollStats.collectAsState()
-    val totalScrollMeters by viewModel.totalScrollMetersToday.collectAsState()
+    val totalScrollMeters by viewModel.totalScrollMeters.collectAsState()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsState()
 
     LazyColumn(

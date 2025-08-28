@@ -7,14 +7,14 @@ import com.example.scrolltracker.data.dao.DailyStatsDao
 import com.example.scrolltracker.data.dao.HourlyUsageStats
 import com.example.scrolltracker.data.dao.ScrollEventDao
 import com.example.scrolltracker.data.dao.TimeBasedScrollStats
+import com.example.scrolltracker.data.db.ScrollDatabase
 import com.example.scrolltracker.data.entity.AppUsageSession
 import com.example.scrolltracker.data.entity.DailyStats
 import com.example.scrolltracker.data.entity.ScrollEvent
-import com.example.scrolltracker.data.entity.WakeCount
+import com.example.scrolltracker.service.AppUsageTracker
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,17 +22,21 @@ import javax.inject.Singleton
 class ScrollRepository @Inject constructor(
     private val scrollEventDao: ScrollEventDao,
     private val appUsageSessionDao: AppUsageSessionDao,
-    private val dailyStatsDao: DailyStatsDao
+    private val dailyStatsDao: DailyStatsDao,
+    private val db: ScrollDatabase,
+    private val appUsageTracker: AppUsageTracker
 ) {
+
+    suspend fun clearAllData() = withContext(Dispatchers.IO) {
+        db.clearAllTables()
+    }
 
     suspend fun insertScrollEvent(event: ScrollEvent) {
         scrollEventDao.insertScrollEvent(event)
     }
 
     fun getScrollStatsByTime(
-        startTime: Long,
-        endTime: Long,
-        groupByHour: Boolean = false
+        startTime: Long, endTime: Long, groupByHour: Boolean = false
     ): Flow<List<TimeBasedScrollStats>> {
         return scrollEventDao.getScrollStatsByTime(startTime, endTime, groupByHour)
     }
@@ -41,21 +45,24 @@ class ScrollRepository @Inject constructor(
         return scrollEventDao.getAppScrollStats(startTime, endTime)
     }
 
-    fun getAppUsageStats(startTime: Long, endTime: Long): Flow<List<AppUsageStats>> {
-        return appUsageSessionDao.getAppUsageStats(startTime, endTime)
+    suspend fun getAppUsageStats(): Flow<List<AppUsageStats>> {
+//        return appUsageSessionDao.getAppUsageStats()
+        return withContext(Dispatchers.IO) {
+            appUsageTracker.getAllAppsDetailedState()
+        }
     }
 
     fun getHourlyUsageStats(startTime: Long, endTime: Long): Flow<List<HourlyUsageStats>> {
         return appUsageSessionDao.getHourlyUsageStats(startTime, endTime)
     }
 
-    suspend fun getTotalScrollMetersToday(): Float {
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-        return scrollEventDao.getTotalScrollMetersForDate(today) ?: 0f
+    suspend fun getTotalScrollMeters(): Float {
+//        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        return scrollEventDao.getTotalScrollMeters() ?: 0f
     }
 
-    suspend fun insertAppUsageSession(session: AppUsageSession) {
-        appUsageSessionDao.insertSession(session)
+    suspend fun insertAppUsageSession(session: AppUsageSession): Long {
+        return appUsageSessionDao.insertSession(session)
     }
 
     suspend fun updateAppUsageSession(session: AppUsageSession) {

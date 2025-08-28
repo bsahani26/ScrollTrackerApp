@@ -9,13 +9,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.hardware.display.DisplayManager
-import android.os.PowerManager
+import android.os.SystemClock
+import android.util.DisplayMetrics
 import android.util.Log
-import android.view.Display
+import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import androidx.core.app.NotificationCompat
-import com.example.scrolltracker.AppUsageTracker
 import com.example.scrolltracker.R
 import com.example.scrolltracker.data.entity.AppUsageSession
 import com.example.scrolltracker.data.entity.ScrollEvent
@@ -31,14 +30,12 @@ import kotlin.math.abs
 
 @AndroidEntryPoint
 class ScrollMonitoringService : AccessibilityService() {
+    private val TAG = "ScrollMonitoringService"
 
     @Inject
     lateinit var repository: ScrollRepository
 
     //    @Inject lateinit var mPackageManager: PackageManager
-    @Inject
-    lateinit var displayManager: DisplayManager
-
     @Inject
     lateinit var appUsageTracker: AppUsageTracker
 
@@ -46,32 +43,20 @@ class ScrollMonitoringService : AccessibilityService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val activeSessions = mutableMapOf<String, AppUsageSession>()
     private val pixelToMeterRatio = 0.0002645833f // Approximate conversion (96 DPI)
+//    private val screenTimeTracker = ScreenTimeTracker(this)
 
+    private val scrollTracker = ScrollTracker()
 
-    val listener = object : DisplayManager.DisplayListener {
-        override fun onDisplayAdded(displayId: Int) {}
-        override fun onDisplayRemoved(displayId: Int) {}
-        override fun onDisplayChanged(displayId: Int) {
-            val display = displayManager.getDisplay(displayId)
-            if (display.state == Display.STATE_ON) {
-                serviceScope.launch {
-                    repository.updateWakeCount(1)
-                }
-                Log.d("DisplayManager", "ScreenWake ${System.currentTimeMillis()}")
-            } else if (display.state == Display.STATE_OFF) {
-                Log.d("DisplayManager", "Screen OFF at ${System.currentTimeMillis()}")
-            }
-        }
+    private val displayMetrics: DisplayMetrics by lazy {
+        val metrics = DisplayMetrics()
+        val windowManager = this.getSystemService(WINDOW_SERVICE) as WindowManager
+        windowManager.defaultDisplay.getMetrics(metrics)
+        metrics
     }
 
     override fun onCreate() {
         super.onCreate()
         startForegroundService()
-        // Check permission first
-        if (!appUsageTracker.hasUsageStatsPermission()) {
-            // Request permission
-//            showPermissionDialog()
-        }
 
         broadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
@@ -118,29 +103,14 @@ class ScrollMonitoringService : AccessibilityService() {
         registerReceiver(broadcastReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)
         })
-//        displayManager.registerDisplayListener(listener,null)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
-
+        Log.d(TAG, "onAccessibilityEvent: $event")
         when (event.eventType) {
             AccessibilityEvent.TYPE_VIEW_SCROLLED -> handleScrollEvent(event)
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> handleWindowStateChanged(event)
-            8192 -> {
-                when (event.contentChangeTypes) {
-                    AccessibilityEvent.CONTENT_CHANGE_TYPE_UNDEFINED -> {
-                        // This fires both for ON and OFF, you need to check actual state
-                        val pm = getSystemService(POWER_SERVICE) as PowerManager
-                        if (pm.isInteractive) {
-                            Log.d("ScreenWake 3", "Screen turned ON. Total wakes: ")
-                        } else {
-                            Log.d("MyAccessibilityService", "Screen OFF at ${System.currentTimeMillis()}")
-                        }
-                    }
-                }
-            }
-
+//            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> handleWindowStateChanged(event)
         }
     }
 
@@ -149,18 +119,30 @@ class ScrollMonitoringService : AccessibilityService() {
             try {
                 val packageName = event.packageName?.toString() ?: return@launch
                 if (packageName == this@ScrollMonitoringService.packageName) return@launch
+                val currentTime = SystemClock.elapsedRealtime()
+                val scrollX = event.scrollX
+                val scrollY = event.scrollY
+//                val maxScrollX = event.maxScrollX
+//                val maxScrollY = event.maxScrollY
+
+                // Calculate scroll metrics
+                scrollTracker.trackScroll(
+                    packageName = packageName,
+                    scrollX = scrollX,
+                    scrollY = scrollY,
+                    timestamp = currentTime
+                )
 
                 val appName = getAppName(packageName)
-                val scrollDistance = calculateScrollDistance(event)
-                val scrollDistanceMeters = scrollDistance * pixelToMeterRatio
-                val direction = calculateScrollDirection(event)
-
+//                val scrollDistance = calculateScrollDistance(event)
+//                val scrollDistanceMeters = scrollDistance * pixelToMeterRatio
+//                val direction = calculateScrollDirection(event)
+                val metrics = scrollTracker.getScrollMetrics(packageName)
                 val scrollEvent = ScrollEvent(
                     packageName = packageName,
                     appName = appName,
-                    scrollDirection = direction,
-                    scrollDistance = scrollDistance,
-                    scrollDistanceMeters = scrollDistanceMeters,
+                    scrollDistance = metrics.totalDistance,
+                    scrollDistanceMeters = pixelsToMeters(metrics.totalDistance),
                     screenPosition = """{"x": ${event.scrollX}, "y": ${event.scrollY}}""",
                     viewClassName = event.className?.toString(),
                     sessionId = getOrCreateSessionId(packageName)
@@ -187,9 +169,11 @@ class ScrollMonitoringService : AccessibilityService() {
 
     private suspend fun handleAppForeground(packageName: String, appName: String) {
         // End any existing active sessions for other apps
+        Log.d(TAG, "handleAppForeground: $appName")
         activeSessions.values.filter { it.packageName != packageName && it.isActive }
             .forEach { session ->
-                val foregroundTime = appUsageTracker.getAppActiveTime(packageName)
+                Log.d(TAG, "handleAppForeground: filter ${session.appName}")
+                val foregroundTime = appUsageTracker.getAppActiveTime(session.packageName)
                 val updatedSession = session.copy(
                     sessionEnd = System.currentTimeMillis(),
 //                    totalTimeSpent = System.currentTimeMillis() - session.sessionStart,
@@ -209,7 +193,7 @@ class ScrollMonitoringService : AccessibilityService() {
                 wakeUpCount = 1,
                 isActive = true
             )
-            repository.insertAppUsageSession(newSession)
+            newSession.id = repository.insertAppUsageSession(newSession)
             activeSessions[packageName] = newSession
         }
     }
@@ -239,8 +223,37 @@ class ScrollMonitoringService : AccessibilityService() {
         }
     }
 
+    // Public methods to get tracked data
+    fun getScrollMetricsForApp(packageName: String): ScrollMetrics {
+        return scrollTracker.getScrollMetrics(packageName)
+    }
+
+//    fun getScreenTimeForApp(packageName: String): Long {
+//        return screenTimeTracker.getScreenTime(packageName)
+//    }
+
     private fun getOrCreateSessionId(packageName: String): String {
         return activeSessions[packageName]?.id?.toString() ?: "unknown"
+    }
+
+    fun pixelsToMeters(pixels: Float): Float {
+        val dpi = displayMetrics.densityDpi.toFloat()
+        val inches = pixels / dpi
+        return inches * 0.0254f // Convert inches to meters
+    }
+
+    /**
+     * Convert pixels to centimeters (more practical for mobile screens)
+     */
+    fun pixelsToCentimeters(pixels: Float): Float {
+        return pixelsToMeters(pixels) * 100f
+    }
+
+    /**
+     * Convert pixels to millimeters
+     */
+    fun pixelsToMillimeters(pixels: Float): Float {
+        return pixelsToMeters(pixels) * 1000f
     }
 
     private suspend fun updateSessionScrollCount(packageName: String) {
@@ -289,3 +302,14 @@ class ScrollMonitoringService : AccessibilityService() {
         unregisterReceiver(broadcastReceiver)
     }
 }
+
+data class ScrollMetrics(
+    val totalDistance: Float = 0f,
+    val averageSpeed: Float = 0f,
+    val activeDuration: Long = 0L,
+    val scrollCount: Int = 0
+)
+
+data class ScrollPoint(
+    val x: Int, val y: Int, val timestamp: Long
+)
